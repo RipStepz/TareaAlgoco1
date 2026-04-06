@@ -22,11 +22,9 @@ class Record:
     source_file: str
 
 
-SORTING_ALGO_MAP = {
-    "mergesort": "MergeSort",
-    "quicksort": "QuickSort",
-    "sort": "Sort",
-    "stdsort": "Sort",
+MATRIX_ALGO_MAP = {
+    "naive": "Naive",
+    "strassen": "Strassen",
 }
 
 LINE_PATTERN = re.compile(
@@ -34,8 +32,8 @@ LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-ALGORITHM_ORDER = ["MergeSort", "QuickSort", "Sort"]
-N_ORDER = [10, 1000, 100000]
+ALGORITHM_ORDER = ["Naive", "Strassen"]
+N_ORDER = [4, 16, 256, 1024]
 
 
 def parse_measurement_file(file_path: Path) -> List[Record]:
@@ -58,7 +56,7 @@ def parse_measurement_file(file_path: Path) -> List[Record]:
                 continue
 
             raw_algo, time_ms, memory_bytes = match.groups()
-            algorithm = SORTING_ALGO_MAP.get(raw_algo.strip().lower(), raw_algo.strip())
+            algorithm = MATRIX_ALGO_MAP.get(raw_algo.strip().lower(), raw_algo.strip())
 
             records.append(
                 Record(
@@ -114,7 +112,7 @@ def save_line_plot(
             continue
         plt.plot(group["n"], group[metric_col], marker="o", linewidth=2, label=algorithm)
 
-    plt.xscale("log", base=10)
+    plt.xscale("log", base=2)
     plt.xlabel("n")
     plt.ylabel(ylabel)
     plt.title(title)
@@ -142,7 +140,7 @@ def save_bar_plot_for_n(
     categories.sort()
 
     x = np.arange(len(categories))
-    width = 0.25
+    width = 0.35
 
     plt.figure(figsize=(10, 6))
 
@@ -150,15 +148,15 @@ def save_bar_plot_for_n(
         alg_values = []
         for category in categories:
             cell = filtered[
-                (filtered["category"] == category) &
-                (filtered["algorithm"] == algorithm)
+                (filtered["category"] == category)
+                & (filtered["algorithm"] == algorithm)
             ][metric_col]
             alg_values.append(float(cell.iloc[0]) if not cell.empty else 0.0)
 
-        plt.bar(x + (i - 1) * width, alg_values, width=width, label=algorithm)
+        plt.bar(x + (i - 0.5) * width, alg_values, width=width, label=algorithm)
 
     plt.xticks(x, categories)
-    plt.xlabel("Tipo de arreglo")
+    plt.xlabel("Tipo de matriz")
     plt.ylabel(ylabel)
     plt.title(title)
     plt.grid(True, axis="y", linestyle="--", alpha=0.4)
@@ -169,9 +167,9 @@ def save_bar_plot_for_n(
     plt.close()
 
 
-def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
+def generate_matrix_plots(df: pd.DataFrame, output_dir: Path) -> None:
     if df.empty:
-        print("[sorting] No se encontraron datos.")
+        print("[matrix] No se encontraron datos.")
         return
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -190,7 +188,15 @@ def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
         metric_col="time_ms",
         title="Tiempo promedio vs n (todos los casos)",
         ylabel="Tiempo promedio (ms)",
-        output_path=output_dir / "sorting_time_general_lineas.png",
+        output_path=output_dir / "matrix_time_general_lineas.png",
+    )
+
+    save_line_plot(
+        overall,
+        metric_col="memory_bytes",
+        title="Memoria promedio vs n (todos los casos)",
+        ylabel="Memoria promedio (bytes)",
+        output_path=output_dir / "matrix_memoria_general_lineas.png",
     )
 
     by_type = (
@@ -202,23 +208,23 @@ def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
         .sort_values(["n", "category", "algorithm"])
     )
 
-    for n_value in N_ORDER:
+    for n_value in sorted(df["n"].dropna().unique()):
         save_bar_plot_for_n(
             by_type,
-            n_value=n_value,
+            n_value=int(n_value),
             metric_col="time_ms",
-            title=f"Tiempo promedio por tipo de arreglo (n = {n_value})",
+            title=f"Tiempo promedio por tipo de matriz (n = {int(n_value)})",
             ylabel="Tiempo promedio (ms)",
-            output_path=output_dir / f"sorting_barras_tiempo_n{n_value}.png",
+            output_path=output_dir / f"matrix_barras_tiempo_n{int(n_value)}.png",
         )
 
         save_bar_plot_for_n(
             by_type,
-            n_value=n_value,
+            n_value=int(n_value),
             metric_col="memory_bytes",
-            title=f"Memoria promedio por tipo de arreglo (n = {n_value})",
+            title=f"Memoria promedio por tipo de matriz (n = {int(n_value)})",
             ylabel="Memoria promedio (bytes)",
-            output_path=output_dir / f"sorting_barras_memoria_n{n_value}.png",
+            output_path=output_dir / f"matrix_barras_memoria_n{int(n_value)}.png",
         )
 
     summary = (
@@ -230,23 +236,23 @@ def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
         )
         .sort_values(["n", "category", "domain", "algorithm"])
     )
-    summary.to_csv(output_dir / "sorting_summary.csv", index=False)
+    summary.to_csv(output_dir / "matrix_summary.csv", index=False)
 
-    print(f"[sorting] Gráficos y resumen guardados en: {output_dir}")
+    print(f"[matrix] Gráficos y resumen guardados en: {output_dir}")
 
 
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
 
-    sorting_measurements = (base_dir / ".." / "data" / "measurements").resolve()
-    sorting_plots = (base_dir / ".." / "data" / "plots").resolve()
+    matrix_measurements = (base_dir / ".." / "data" / "measurements").resolve()
+    matrix_plots = (base_dir / ".." / "data" / "plots").resolve()
 
-    if not sorting_measurements.exists():
-        print(f"[sorting] No se encontró carpeta de mediciones: {sorting_measurements}")
+    if not matrix_measurements.exists():
+        print(f"[matrix] No se encontró carpeta de mediciones: {matrix_measurements}")
         return
 
-    sorting_df = load_records(sorting_measurements)
-    generate_sorting_plots(sorting_df, sorting_plots)
+    matrix_df = load_records(matrix_measurements)
+    generate_matrix_plots(matrix_df, matrix_plots)
 
 
 if __name__ == "__main__":

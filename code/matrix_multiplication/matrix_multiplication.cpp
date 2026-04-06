@@ -179,13 +179,25 @@ int main() {
         Matrix mat1 = leerMatriz(ruta1);
         Matrix mat2 = leerMatriz(ruta2);
 
-        Matrix res_naive = multiplyNaive(mat1, mat2);
-        Matrix res_strassen = multiply(mat1, mat2);
+        Matrix res_naive;
+        Measurement meas_naive = measure_algorithm([&]() {
+            res_naive = multiplyNaive(mat1, mat2);
+        });
+
+        Matrix naive_result = res_naive;
+        res_naive.clear();
+        res_naive.shrink_to_fit();
+
+        Matrix res_strassen;
+        Measurement meas_strassen = measure_algorithm([&]() {
+            res_strassen = multiply(mat1, mat2);
+        });
 
         cout << "Caso procesado:\n";
         cout << "  " << nombre_archivo << " y " << nombre_par << "\n";
-        cout << "  Resultado naive: " << res_naive.size() << "x";
-        if (!res_naive.empty()) cout << res_naive[0].size();
+
+        cout << "  Resultado naive: " << naive_result.size() << "x";
+        if (!naive_result.empty()) cout << naive_result[0].size();
         else cout << 0;
         cout << "\n";
 
@@ -194,13 +206,63 @@ int main() {
         else cout << 0;
         cout << "\n";
 
-        if (res_naive == res_strassen) {
+        cout << "  Naive tiempo: " << meas_naive.time_ms << " ms\n";
+        cout << "  Naive memoria peak: " << meas_naive.peak_bytes << " bytes\n";
+
+        cout << "  Strassen tiempo: " << meas_strassen.time_ms << " ms\n";
+        cout << "  Strassen memoria peak: " << meas_strassen.peak_bytes << " bytes\n";
+
+        if (naive_result == res_strassen) {
             cout << "  Ambos resultados coinciden\n";
         } else {
             cout << "  OJO: los resultados NO coinciden\n";
         }
 
         cout << "--------------------------\n";
+        string base = nombre_archivo.substr(0, nombre_archivo.size() - 6);
+
+        // archivo de mediciones
+        string carpeta_out = "data/measurements/";
+        string ruta_out = carpeta_out + base + ".txt";
+
+        ofstream out(ruta_out);
+
+        if (!out.is_open()) {
+            cerr << "Error al crear archivo: " << ruta_out << endl;
+            return 1;
+        }
+
+        out << "Naive: "
+            << meas_naive.time_ms << " ms, "
+            << meas_naive.peak_bytes << " bytes\n";
+
+        out << "Strassen: "
+            << meas_strassen.time_ms << " ms, "
+            << meas_strassen.peak_bytes << " bytes\n";
+
+        out.close();
+
+        // archivo de salida de matriz resultado
+        string ruta_output = "data/matrix_output/" + base + "_out.txt";
+
+        ofstream out_matrix(ruta_output);
+
+        if (!out_matrix.is_open()) {
+            cerr << "Error al crear archivo: " << ruta_output << endl;
+            return 1;
+        }
+
+        for (size_t i = 0; i < naive_result.size(); i++) {
+            for (size_t j = 0; j < naive_result[i].size(); j++) {
+                out_matrix << naive_result[i][j];
+                if (j + 1 < naive_result[i].size()) {
+                    out_matrix << " ";
+                }
+            }
+            out_matrix << "\n";
+        }
+
+        out_matrix.close();
     }
 
     return 0;

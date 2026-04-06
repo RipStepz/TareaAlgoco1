@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 
@@ -33,13 +34,8 @@ LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-
-def find_first_existing_dir(candidates: List[Path]) -> Optional[Path]:
-    for path in candidates:
-        if path.exists() and path.is_dir():
-            return path
-    return None
-
+ALGORITHM_ORDER = ["MergeSort", "QuickSort", "Sort"]
+N_ORDER = [10, 1000, 100000]
 
 
 def parse_measurement_file(file_path: Path) -> List[Record]:
@@ -79,7 +75,6 @@ def parse_measurement_file(file_path: Path) -> List[Record]:
     return records
 
 
-
 def load_records(measurements_dir: Path) -> pd.DataFrame:
     all_records: List[Record] = []
     for file_path in sorted(measurements_dir.glob("*.txt")):
@@ -99,29 +94,27 @@ def load_records(measurements_dir: Path) -> pd.DataFrame:
             ]
         )
 
-    return pd.DataFrame([r.__dict__ for r in all_records])
-
+    df = pd.DataFrame([r.__dict__ for r in all_records])
+    df["algorithm"] = pd.Categorical(df["algorithm"], categories=ALGORITHM_ORDER, ordered=True)
+    return df.sort_values(["category", "domain", "n", "algorithm", "sample"])
 
 
 def save_line_plot(
     data: pd.DataFrame,
-    x: str,
-    y: str,
-    hue: str,
+    metric_col: str,
     title: str,
     ylabel: str,
     output_path: Path,
-    log_x: bool = True,
 ) -> None:
     plt.figure(figsize=(10, 6))
 
-    for label, group in data.groupby(hue):
-        group = group.sort_values(x)
-        plt.plot(group[x], group[y], marker="o", linewidth=2, label=label)
+    for algorithm in ALGORITHM_ORDER:
+        group = data[data["algorithm"] == algorithm].sort_values("n")
+        if group.empty:
+            continue
+        plt.plot(group["n"], group[metric_col], marker="o", linewidth=2, label=algorithm)
 
-    if log_x:
-        plt.xscale("log", base=10)
-
+    plt.xscale("log", base=10)
     plt.xlabel("n")
     plt.ylabel(ylabel)
     plt.title(title)
@@ -133,54 +126,47 @@ def save_line_plot(
     plt.close()
 
 
-
-def save_grouped_plots_by_category(
-    df: pd.DataFrame,
-    output_dir: Path,
+def save_bar_plot_for_n(
+    subset: pd.DataFrame,
+    n_value: int,
     metric_col: str,
-    metric_label: str,
-    prefix: str,
-    category_field: str,
-    category_title: str,
+    title: str,
+    ylabel: str,
+    output_path: Path,
 ) -> None:
-    for category in sorted(df[category_field].dropna().unique()):
-        subset = df[df[category_field] == category]
-        grouped = (
-            subset.groupby(["n", "algorithm"], as_index=False)[metric_col]
-            .mean()
-            .sort_values(["algorithm", "n"])
-        )
-        save_line_plot(
-            grouped,
-            x="n",
-            y=metric_col,
-            hue="algorithm",
-            title=f"{metric_label} promedio vs n ({category_title}: {category})",
-            ylabel=metric_label,
-            output_path=output_dir / f"{prefix}_{category}.png",
-        )
+    filtered = subset[subset["n"] == n_value].copy()
+    if filtered.empty:
+        return
 
+    categories = list(filtered["category"].dropna().unique())
+    categories.sort()
 
-
-def save_case_count_plot(df: pd.DataFrame, output_path: Path) -> None:
-    counts = df.groupby(["n", "algorithm"], as_index=False).size()
+    x = np.arange(len(categories))
+    width = 0.25
 
     plt.figure(figsize=(10, 6))
-    for label, group in counts.groupby("algorithm"):
-        group = group.sort_values("n")
-        plt.plot(group["n"], group["size"], marker="o", linewidth=2, label=label)
 
-    plt.xscale("log", base=10)
-    plt.xlabel("n")
-    plt.ylabel("Cantidad de mediciones")
-    plt.title("Cobertura de mediciones por n (sorting)")
-    plt.grid(True, linestyle="--", alpha=0.4)
+    for i, algorithm in enumerate(ALGORITHM_ORDER):
+        alg_values = []
+        for category in categories:
+            cell = filtered[
+                (filtered["category"] == category) &
+                (filtered["algorithm"] == algorithm)
+            ][metric_col]
+            alg_values.append(float(cell.iloc[0]) if not cell.empty else 0.0)
+
+        plt.bar(x + (i - 1) * width, alg_values, width=width, label=algorithm)
+
+    plt.xticks(x, categories)
+    plt.xlabel("Tipo de arreglo")
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid(True, axis="y", linestyle="--", alpha=0.4)
     plt.legend()
     plt.tight_layout()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_path, dpi=200)
     plt.close()
-
 
 
 def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
@@ -190,69 +176,50 @@ def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    avg_time = df.groupby(["n", "algorithm"], as_index=False)["time_ms"].mean()
+    overall = (
+        df.groupby(["n", "algorithm"], as_index=False)
+        .agg(
+            time_ms=("time_ms", "mean"),
+            memory_bytes=("memory_bytes", "mean"),
+        )
+        .sort_values(["n", "algorithm"])
+    )
+
     save_line_plot(
-        avg_time,
-        x="n",
-        y="time_ms",
-        hue="algorithm",
-        title="Tiempo promedio de ejecución vs n (todos los casos)",
+        overall,
+        metric_col="time_ms",
+        title="Tiempo promedio vs n (todos los casos)",
         ylabel="Tiempo promedio (ms)",
-        output_path=output_dir / "sorting_time_avg_overall.png",
+        output_path=output_dir / "sorting_time_general_lineas.png",
     )
 
-    avg_mem = df.groupby(["n", "algorithm"], as_index=False)["memory_bytes"].mean()
-    save_line_plot(
-        avg_mem,
-        x="n",
-        y="memory_bytes",
-        hue="algorithm",
-        title="Memoria promedio vs n (todos los casos)",
-        ylabel="Memoria promedio (bytes)",
-        output_path=output_dir / "sorting_memory_avg_overall.png",
+    by_type = (
+        df.groupby(["n", "category", "algorithm"], as_index=False)
+        .agg(
+            time_ms=("time_ms", "mean"),
+            memory_bytes=("memory_bytes", "mean"),
+        )
+        .sort_values(["n", "category", "algorithm"])
     )
 
-    save_grouped_plots_by_category(
-        df,
-        output_dir,
-        metric_col="time_ms",
-        metric_label="Tiempo promedio (ms)",
-        prefix="sorting_time_by_type",
-        category_field="category",
-        category_title="tipo",
-    )
+    for n_value in N_ORDER:
+        save_bar_plot_for_n(
+            by_type,
+            n_value=n_value,
+            metric_col="time_ms",
+            title=f"Tiempo promedio por tipo de arreglo (n = {n_value})",
+            ylabel="Tiempo promedio (ms)",
+            output_path=output_dir / f"sorting_barras_tiempo_n{n_value}.png",
+        )
 
-    save_grouped_plots_by_category(
-        df,
-        output_dir,
-        metric_col="memory_bytes",
-        metric_label="Memoria promedio (bytes)",
-        prefix="sorting_memory_by_type",
-        category_field="category",
-        category_title="tipo",
-    )
-
-    save_grouped_plots_by_category(
-        df,
-        output_dir,
-        metric_col="time_ms",
-        metric_label="Tiempo promedio (ms)",
-        prefix="sorting_time_by_domain",
-        category_field="domain",
-        category_title="dominio",
-    )
-
-    save_grouped_plots_by_category(
-        df,
-        output_dir,
-        metric_col="memory_bytes",
-        metric_label="Memoria promedio (bytes)",
-        prefix="sorting_memory_by_domain",
-        category_field="domain",
-        category_title="dominio",
-    )
-
-    save_case_count_plot(df, output_dir / "sorting_case_count.png")
+        save_bar_plot_for_n(
+            by_type,
+            n_value=n_value,
+            metric_col="memory_bytes",
+            title=f"Memoria promedio por tipo de arreglo (n = {n_value})",
+            ylabel="Memoria promedio (bytes)",
+            output_path=output_dir / f"sorting_barras_memoria_n{n_value}.png",
+        )
 
     summary = (
         df.groupby(["n", "category", "domain", "algorithm"], as_index=False)
@@ -264,18 +231,18 @@ def generate_sorting_plots(df: pd.DataFrame, output_dir: Path) -> None:
         .sort_values(["n", "category", "domain", "algorithm"])
     )
     summary.to_csv(output_dir / "sorting_summary.csv", index=False)
-    print(f"[sorting] Gráficos y resumen guardados en: {output_dir}")
 
+    print(f"[sorting] Gráficos y resumen guardados en: {output_dir}")
 
 
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
 
-    sorting_measurements = sorting_measurements = (base_dir / ".." / "data" / "measurements").resolve()
-    sorting_plots = base_dir / ".." / "data" / "plots"
+    sorting_measurements = (base_dir / ".." / "data" / "measurements").resolve()
+    sorting_plots = (base_dir / ".." / "data" / "plots").resolve()
 
-    if sorting_measurements is None:
-        print("[sorting] No se encontró carpeta de mediciones de sorting.")
+    if not sorting_measurements.exists():
+        print(f"[sorting] No se encontró carpeta de mediciones: {sorting_measurements}")
         return
 
     sorting_df = load_records(sorting_measurements)
