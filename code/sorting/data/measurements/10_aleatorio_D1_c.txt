@@ -1,0 +1,3 @@
+MergeSort: 0.00109 ms, 40 bytes
+QuickSort: 0.00017 ms, 0 bytes
+StdSort: 0.00017 ms, 40 bytes

@@ -23,7 +23,7 @@ def guardar_arreglo(nombre_archivo, arreglo):
         f.write(" ".join(map(str, arreglo)))
 
 def generar_archivos():
-    N = [10**1, 10**3, 10**5, 10**7] 
+    N = [10**1, 10**3, 10**5] 
     T = ["ascendente", "descendente", "aleatorio"]
     D = ["D1", "D7"]
     M = ["a", "b", "c"]
