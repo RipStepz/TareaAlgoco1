@@ -17,6 +17,8 @@
 #include <cstdlib>
 #include <new>
 
+
+
 namespace MemoryTracker {
     inline std::atomic<std::size_t> current_bytes{0};
     inline std::atomic<std::size_t> peak_bytes{0};
