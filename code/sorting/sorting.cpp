@@ -154,6 +154,10 @@ vector<int> leerArchivo(const string& ruta) {
     return arr;
 }
 
+std::vector<int> copyOnly(std::vector<int>& arr) {
+    return arr;
+}
+
 int main() {
     string carpeta = "data/array_input";
     //int i = 0;
@@ -161,7 +165,7 @@ int main() {
 
         string ruta = entry.path().string();
         string nombre_archivo = entry.path().filename().string();
-        cout <<"Nombre del Archivo: " << nombre_archivo << endl;
+        //cout <<"Nombre del Archivo: " << nombre_archivo << endl;
        
         vector<int> arr = leerArchivo(ruta);
         /*
@@ -193,11 +197,23 @@ int main() {
             quickSort(a2, 0, a2.size() - 1);
         });
 
-        // STD SORT
         vector<int> a3 = arr;
-        Measurement m3 = measure_algorithm([&]() {
-            sortArray(a3);
+        Measurement m3_raw = measure_algorithm([&]() {
+            volatile auto result = sortArray(a3);
         });
+
+        // COPIA BASELINE
+        vector<int> a4 = arr;
+        Measurement m3_copy = measure_algorithm([&]() {
+            volatile auto result = copyOnly(a4);
+        });
+
+        // Memoria estimada propia de sort
+        size_t stdsort_estimated_bytes = 0;
+        if (m3_raw.peak_bytes >= m3_copy.peak_bytes) {
+            stdsort_estimated_bytes = m3_raw.peak_bytes - m3_copy.peak_bytes;
+        }
+
         string carpeta_out = "data/measurements/";
 
         string ruta_out = carpeta_out + nombre_archivo;
@@ -217,15 +233,35 @@ int main() {
             << m2.time_ms << " ms, "
             << m2.peak_bytes << " bytes\n";
 
-        out << "StdSort: "
-            << m3.time_ms << " ms, "
-            << m3.peak_bytes << " bytes\n";
+        out << "Sort: "
+            << m3_raw.time_ms << " ms, "
+            << stdsort_estimated_bytes << " bytes"
+            << " (raw: " << m3_raw.peak_bytes
+            << ", copy baseline: " << m3_copy.peak_bytes << ")\n";
 
         out.close();
+
+        string nombre_sin_ext = nombre_archivo.substr(0, nombre_archivo.find("."));
+        string nombre_out = nombre_sin_ext + "_out.txt";
+        string ruta_output = "data/array_output/" + nombre_out;
+
+        ofstream out_array(ruta_output);
+
+        if (!out_array.is_open()) {
+            cerr << "Error al crear archivo: " << ruta_output << endl;
+            return 1;
+        }
+
+        // escribir elementos separados por espacio
+        for (size_t i = 0; i < a3.size(); i++) {
+            out_array << a3[i];
+            if (i != a3.size() - 1) {
+                out_array << " ";
+            }
+        }
+
+        out_array.close();
         
-        // if(i==0){
-        //     break;
-        // }
     }
 
     return 0;

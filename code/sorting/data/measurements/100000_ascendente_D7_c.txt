@@ -1,3 +1,3 @@
-MergeSort: 2.88435 ms, 400000 bytes
-QuickSort: 2206.32 ms, 0 bytes
-StdSort: 0.737945 ms, 400000 bytes
+MergeSort: 2.93502 ms, 400000 bytes
+QuickSort: 2186.83 ms, 0 bytes
+Sort: 0.716925 ms, 0 bytes (raw: 400000, copy baseline: 400000)
