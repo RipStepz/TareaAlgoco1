@@ -13,6 +13,10 @@
 #include "algorithms/quicksort.cpp"
 #include "algorithms/sort.cpp"
 
+#include <atomic>
+#include <cstdlib>
+#include <new>
+
 namespace MemoryTracker {
     inline std::atomic<std::size_t> current_bytes{0};
     inline std::atomic<std::size_t> peak_bytes{0};
@@ -117,17 +121,15 @@ struct Measurement {
     std::size_t peak_bytes;
 };
 
-Measurement measure_algorithm(const std::function<void()>& algorithm) {
+template <typename F>
+Measurement measure_algorithm(F&& algorithm) {
     MemoryTracker::start();
-
     auto start = std::chrono::high_resolution_clock::now();
     algorithm();
     auto end = std::chrono::high_resolution_clock::now();
-
     MemoryTracker::stop();
 
     std::chrono::duration<double, std::milli> elapsed = end - start;
-
     return {elapsed.count(), MemoryTracker::peak()};
 }
 
