@@ -193,32 +193,32 @@ int main() {
             res_strassen = multiply(mat1, mat2);
         });
 
-        cout << "Caso procesado:\n";
-        cout << "  " << nombre_archivo << " y " << nombre_par << "\n";
+        // cout << "Caso procesado:\n";
+        // cout << "  " << nombre_archivo << " y " << nombre_par << "\n";
 
-        cout << "  Resultado naive: " << naive_result.size() << "x";
-        if (!naive_result.empty()) cout << naive_result[0].size();
-        else cout << 0;
-        cout << "\n";
+        // cout << "  Resultado naive: " << naive_result.size() << "x";
+        // if (!naive_result.empty()) cout << naive_result[0].size();
+        // else cout << 0;
+        // cout << "\n";
 
-        cout << "  Resultado strassen: " << res_strassen.size() << "x";
-        if (!res_strassen.empty()) cout << res_strassen[0].size();
-        else cout << 0;
-        cout << "\n";
+        // cout << "  Resultado strassen: " << res_strassen.size() << "x";
+        // if (!res_strassen.empty()) cout << res_strassen[0].size();
+        // else cout << 0;
+        // cout << "\n";
 
-        cout << "  Naive tiempo: " << meas_naive.time_ms << " ms\n";
-        cout << "  Naive memoria peak: " << meas_naive.peak_bytes << " bytes\n";
+        // cout << "  Naive tiempo: " << meas_naive.time_ms << " ms\n";
+        // cout << "  Naive memoria peak: " << meas_naive.peak_bytes << " bytes\n";
 
-        cout << "  Strassen tiempo: " << meas_strassen.time_ms << " ms\n";
-        cout << "  Strassen memoria peak: " << meas_strassen.peak_bytes << " bytes\n";
+        // cout << "  Strassen tiempo: " << meas_strassen.time_ms << " ms\n";
+        // cout << "  Strassen memoria peak: " << meas_strassen.peak_bytes << " bytes\n";
 
-        if (naive_result == res_strassen) {
-            cout << "  Ambos resultados coinciden\n";
-        } else {
-            cout << "  OJO: los resultados NO coinciden\n";
-        }
+        // if (naive_result == res_strassen) {
+        //     cout << "  Ambos resultados coinciden\n";
+        // } else {
+        //     cout << "  OJO: los resultados NO coinciden\n";
+        // }
 
-        cout << "--------------------------\n";
+        // cout << "--------------------------\n";
         string base = nombre_archivo.substr(0, nombre_archivo.size() - 6);
 
         // archivo de mediciones

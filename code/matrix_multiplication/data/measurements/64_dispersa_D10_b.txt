@@ -1,2 +1,2 @@
-Naive: 0.12453 ms, 18176 bytes
-Strassen: 54.7484 ms, 236128 bytes
+Naive: 0.127671 ms, 18176 bytes
+Strassen: 54.1597 ms, 236128 bytes
